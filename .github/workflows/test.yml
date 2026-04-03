@@ -1,0 +1,68 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run unit tests
+        run: poetry run pytest -v pamfilico_python_sse/tests/test_emitter.py
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Start test stack
+        run: docker compose -f docker-compose.test.yml up -d --build
+
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:5098/health | grep -q 200; then
+              echo "API ready."
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to start."
+          docker compose -f docker-compose.test.yml logs
+          exit 1
+
+      - name: Run integration tests
+        env:
+          SSE_TEST_API_URL: http://localhost:5098
+        run: poetry run pytest -v pamfilico_python_sse/tests/test_integration.py
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.test.yml down
