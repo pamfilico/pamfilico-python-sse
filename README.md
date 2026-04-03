@@ -167,6 +167,34 @@ Install [`pamfilico-nextjs-sse`](../pamfilico-nextjs-sse/) for the Next.js side 
 
 ---
 
+## Scaling
+
+The current design POSTs directly to a single Next.js instance's `/api/trigger`. This works perfectly with one frontend instance.
+
+### When it breaks
+
+With 2+ Next.js instances behind a load balancer, the event may hit an instance that doesn't have the user's SSE connection. The in-memory `EventEmitter` on the frontend only broadcasts within its own process.
+
+### Fix: Redis Pub/Sub between frontend instances
+
+The backend side (this package) doesn't need to change — it still POSTs to `/api/trigger`. The fix is on the Next.js side: replace the in-memory emitter with Redis pub/sub so all instances share events.
+
+### When do you need this?
+
+| Setup | Current design works? |
+|-------|----------------------|
+| 1 Next.js process | Yes |
+| 2+ instances + sticky sessions | Yes, but fragile |
+| 2+ instances + round-robin LB | No — need Redis on frontend |
+
+### TODO
+
+- [ ] Option to publish directly to Redis instead of HTTP POST (skip the `/api/trigger` hop)
+- [ ] Batch emit: `emit_events([...])` for routes that emit multiple events
+- [ ] Async emit option (fire-and-forget, don't block the request)
+
+---
+
 ## License
 
 MIT
