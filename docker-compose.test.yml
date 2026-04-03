@@ -1,0 +1,9 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    ports:
+      - "5098:5000"
+    environment:
+      - NEXTAUTH_URL=http://localhost:5000
