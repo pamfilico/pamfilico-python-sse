@@ -177,7 +177,7 @@ With 2+ Next.js instances behind a load balancer, the event may hit an instance 
 
 ### Fix: Redis Pub/Sub between frontend instances
 
-The backend side (this package) doesn't need to change — it still POSTs to `/api/trigger`. The fix is on the Next.js side: replace the in-memory emitter with Redis pub/sub so all instances share events.
+The backend side (this package) doesn't need to change — it still POSTs to `/api/trigger`. The fix is on the Next.js side: replace the in-memory emitter with Redis pub/sub so all instances share events. The Redis channel must include the app name (e.g., `docufast:sse_events`) so multiple apps sharing the same Redis don't cross-contaminate events.
 
 ### When do you need this?
 
