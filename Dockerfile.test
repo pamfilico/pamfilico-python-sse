@@ -6,6 +6,6 @@ RUN pip install --no-cache-dir poetry
 COPY pyproject.toml poetry.lock* README.md ./
 COPY pamfilico_python_sse pamfilico_python_sse
 RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi
+    && poetry install --no-interaction --no-ansi --extras redis
 
 CMD ["python", "-c", "from pamfilico_python_sse.tests.test_server import app; app.run(host='0.0.0.0', port=5000)"]

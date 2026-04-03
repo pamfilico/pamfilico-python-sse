@@ -8,10 +8,15 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.9"
 requests = ">=2.28.0"
+redis = {version = ">=4.0.0", optional = true}
+
+[tool.poetry.extras]
+redis = ["redis"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=7.0.0"
 flask = ">=2.0.0"
+redis = ">=4.0.0"
 commitizen = "^4.9.1"
 cookiecutter = ">=2.0.0"
 

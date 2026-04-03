@@ -118,28 +118,59 @@ cookiecutter packages/pamfilico-python-sse/cookiecutter/
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `NEXTAUTH_URL` | `http://localhost:3000` | Frontend base URL |
+| `NEXTAUTH_URL` | `http://localhost:3000` | Frontend base URL (HTTP mode) |
+| `REDIS_URL` | (unset) | If set, publishes to Redis instead of HTTP POST |
+| `APP_NAME` | `app` | Redis channel prefix |
+| `SSE_CHANNEL` | `sse_events` | Redis channel suffix |
+
+Redis channel format: `{APP_NAME}:{SSE_CHANNEL}` (e.g., `docufast:sse_events`)
 
 ---
 
 ## How it works
+
+**Default (no Redis):**
 
 ```
 Flask route/service
     ↓ emit_event("updated_favorite_123", {...})
     ↓
 POST http://{NEXTAUTH_URL}/api/trigger
-    Body: {"eventName": "updated_favorite_123", "payload": {...}}
     ↓
-Next.js /api/trigger route
-    ↓ sseEmitter.emit('broadcast', ...)
-    ↓
-GET /api/events (SSE stream)
-    ↓ event: updated_favorite_123
-    ↓ data: {"payload": {...}}
-    ↓
-Browser EventSource → useSSEEvent hook → component re-renders
+Next.js /api/trigger → sseEmitter → /api/events → Browser
 ```
+
+**With Redis (`REDIS_URL` set):**
+
+```
+Flask route/service
+    ↓ emit_event("updated_favorite_123", {...})
+    ↓
+Redis PUBLISH "{APP_NAME}:{SSE_CHANNEL}"
+    ↓
+Next.js subscriber → sseEmitter → /api/events → Browser
+```
+
+No code changes needed — just set `REDIS_URL` and the package switches automatically.
+
+---
+
+## Redis mode
+
+Install with the redis extra:
+
+```bash
+poetry add "pamfilico-python-sse[redis] @ git+https://github.com/pamfilico/pamfilico-python-sse.git"
+```
+
+Set the environment variable and the package publishes to Redis instead of HTTP:
+
+```bash
+export REDIS_URL=redis://localhost:6379
+export APP_NAME=docufast        # channel prefix (default: "app")
+```
+
+The Next.js side (`pamfilico-nextjs-sse`) subscribes to the same Redis channel and feeds events into the SSE stream. This scales across multiple Next.js instances behind a load balancer.
 
 ---
 
@@ -147,7 +178,8 @@ Browser EventSource → useSSEEvent hook → component re-renders
 
 - Always call `emit_event()` **after** `session.commit()` — never before data is persisted
 - Payload values must be JSON-serializable (`str()` on UUIDs, `.isoformat()` on datetimes)
-- The POST has a 5-second timeout; failures are logged but don't break the request
+- HTTP mode: 5-second timeout; failures logged but don't break the request
+- Redis mode: publishes are fast; connection errors logged and return `False`
 - Event naming: `{action}_{entity}_{id}` for per-record, `{action}_{entity}_table` for collections
 
 ---
@@ -155,43 +187,15 @@ Browser EventSource → useSSEEvent hook → component re-renders
 ## Testing
 
 ```bash
-poetry run pytest -v              # Unit tests (mocked HTTP)
-./run-tests.sh                    # Integration: Docker API + mock trigger
+poetry run pytest -v              # Unit tests (mocked HTTP + Redis)
+./run-tests.sh                    # Integration: Docker API + Redis
 ```
 
 ---
 
 ## Frontend counterpart
 
-Install [`pamfilico-nextjs-sse`](../pamfilico-nextjs-sse/) for the Next.js side (SSEProvider, useSSEEvent hook, /api/trigger and /api/events routes).
-
----
-
-## Scaling
-
-The current design POSTs directly to a single Next.js instance's `/api/trigger`. This works perfectly with one frontend instance.
-
-### When it breaks
-
-With 2+ Next.js instances behind a load balancer, the event may hit an instance that doesn't have the user's SSE connection. The in-memory `EventEmitter` on the frontend only broadcasts within its own process.
-
-### Fix: Redis Pub/Sub between frontend instances
-
-The backend side (this package) doesn't need to change — it still POSTs to `/api/trigger`. The fix is on the Next.js side: replace the in-memory emitter with Redis pub/sub so all instances share events. The Redis channel must include the app name (e.g., `docufast:sse_events`) so multiple apps sharing the same Redis don't cross-contaminate events.
-
-### When do you need this?
-
-| Setup | Current design works? |
-|-------|----------------------|
-| 1 Next.js process | Yes |
-| 2+ instances + sticky sessions | Yes, but fragile |
-| 2+ instances + round-robin LB | No — need Redis on frontend |
-
-### TODO
-
-- [ ] Option to publish directly to Redis instead of HTTP POST (skip the `/api/trigger` hop)
-- [ ] Batch emit: `emit_events([...])` for routes that emit multiple events
-- [ ] Async emit option (fire-and-forget, don't block the request)
+Install [`pamfilico-nextjs-sse`](../pamfilico-nextjs-sse/) for the Next.js side (SSEProvider, useSSEEvent hook, /api/trigger and /api/events routes, Redis subscriber).
 
 ---
 
