@@ -2,7 +2,7 @@
 
 Server-Sent Events emitter for Flask backends. Emits events to a Next.js frontend's `/api/trigger` endpoint so all connected browser tabs receive real-time updates via SSE.
 
-**Used by:** [docufa.st](https://docufa.st)
+**Used by:** Coming soon
 
 ## Installation
 
