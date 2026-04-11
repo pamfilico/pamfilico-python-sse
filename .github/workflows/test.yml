@@ -23,8 +23,11 @@ jobs:
       - name: Install dependencies
         run: poetry install --no-interaction --extras redis
 
-      - name: Run unit tests
-        run: poetry run pytest -v pamfilico_python_sse/tests/test_emitter.py pamfilico_python_sse/tests/test_emitter_redis.py
+      - name: Run unit tests (no Docker — integration tests run in integration job)
+        run: |
+          poetry run pytest -v pamfilico_python_sse/tests/ \
+            --ignore=pamfilico_python_sse/tests/test_integration.py \
+            --ignore=pamfilico_python_sse/tests/test_integration_redis.py
 
   integration:
     name: Integration Tests (HTTP + Redis real)

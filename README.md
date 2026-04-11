@@ -211,9 +211,18 @@ The Next.js side (`pamfilico-nextjs-sse`) subscribes to the same Redis channel a
 
 ## Testing
 
+**Why do some tests show as skipped?**  
+`test_integration.py` and `test_integration_redis.py` need a real Redis and the Flask test API from `docker-compose.test.yml`. If you run plain `pytest` without that stack, those tests are **skipped** (not failed). That is intentional.
+
 ```bash
-poetry run pytest -v              # Unit tests (mocked HTTP + Redis)
-./run-tests.sh                    # Integration: Docker API + Redis
+# Fast local run: unit + mocked paths only (no skips from missing Docker)
+poetry install --extras redis
+poetry run pytest -v pamfilico_python_sse/tests/ \
+  --ignore=pamfilico_python_sse/tests/test_integration.py \
+  --ignore=pamfilico_python_sse/tests/test_integration_redis.py
+
+# Full suite including integration — **no skips** when the stack is up
+./run-tests.sh
 ```
 
 ---
