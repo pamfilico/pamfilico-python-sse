@@ -10,6 +10,31 @@ Server-Sent Events emitter for Flask backends. Emits events to a Next.js fronten
 poetry add git+https://github.com/pamfilico/pamfilico-python-sse.git
 ```
 
+Pin a revision (recommended for production):
+
+```bash
+poetry add git+https://github.com/pamfilico/pamfilico-python-sse.git#main
+```
+
+### JSON payloads in SSE (`data:` lines)
+
+For long-lived HTTP responses where each event is a single JSON object on one `data:` line (pairs with `@pamfilico/nextjs-sse` `forEachSseJsonDataEvent` / `useSseJsonPostTask` on the client):
+
+```python
+from flask import Response, stream_with_context
+from pamfilico_python_sse import SSE_JSON_STREAM_HEADERS, encode_sse_json_data_line
+
+def generate():
+    yield encode_sse_json_data_line({"event": "progress", "step_index": 1, "step_total": 3})
+    yield encode_sse_json_data_line({"event": "done", "registered": 42})
+
+return Response(
+    stream_with_context(generate()),
+    mimetype="text/event-stream",
+    headers=dict(SSE_JSON_STREAM_HEADERS),
+)
+```
+
 ---
 
 ## Quick Start
